@@ -1,1 +1,0 @@
-cmd_/media/sf_linux/Linux-Device-Drivers/proc_desc/proc_desc.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-2.6.35-22-generic/scripts/module-common.lds --build-id -o /media/sf_linux/Linux-Device-Drivers/proc_desc/proc_desc.ko /media/sf_linux/Linux-Device-Drivers/proc_desc/proc_desc.o /media/sf_linux/Linux-Device-Drivers/proc_desc/proc_desc.mod.o
