@@ -1,0 +1,5 @@
+This directory contains edited code from 'Linux Device Drivers by Alessandro Rubini 
+and Jonathan Corbet, published by by O'Reilly & Associates.
+
+I have edited to code to make it more understandable because they have clubbed many 
+pieces together in one module.

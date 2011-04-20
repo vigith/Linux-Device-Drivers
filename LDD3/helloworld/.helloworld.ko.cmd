@@ -1,0 +1,1 @@
+cmd_/media/sf_linux/lkp/helloworld/helloworld.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-2.6.35-22-generic/scripts/module-common.lds --build-id -o /media/sf_linux/lkp/helloworld/helloworld.ko /media/sf_linux/lkp/helloworld/helloworld.o /media/sf_linux/lkp/helloworld/helloworld.mod.o
