@@ -1,0 +1,16 @@
+#!/bin/bash
+
+module="proc_desc"
+device="proc_desc"
+device_nr=1
+
+
+# invoke rmmod with all arguments we got
+/sbin/rmmod $module $* || exit 1
+
+
+# Remove stale nodes
+for((i=0; i<device_nr; i++)) 
+do
+    rm -f /dev/${device}$i
+done
