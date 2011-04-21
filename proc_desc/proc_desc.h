@@ -10,10 +10,14 @@
 #define PD_NR 1
 #endif
 
+#ifndef PD_STR_SIZE
+#define PD_STR_SIZE 1024
+#endif
+
 /* Storage of a PID and its 'task_struct' */
 struct pd_data {
   pid_t pid;			/* pid corresponding to below task_struct */
-  struct task_struct *pd_ts;	/* pointer to task_struct */
+  char *pd_str;	/* pointer to task_struct */
 };
 
 struct pd_dev {

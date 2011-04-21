@@ -1,6 +1,6 @@
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
+#include <linux/string.h>
 #include <linux/init.h>
 
 #include <linux/kernel.h>	/* printk() */
@@ -8,6 +8,7 @@
 #include <linux/fs.h>		/* everything... */
 #include <linux/errno.h>	/* error codes */
 #include <linux/types.h>	/* size_t */
+#include <linux/sched.h>        /* current and everything */
 
 #include <linux/fcntl.h>	/* O_ACCMODE */
 #include <linux/seq_file.h>
@@ -57,12 +58,39 @@ int pd_open(struct inode *inode, struct file *filp) {
 }
 
 /* 
- * Read from the device
+ * Read from the device (write to userspace)
  */
 ssize_t pd_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) {
   struct pd_dev *dev = filp->private_data; /* we had stored 'dev' in private_data, else use container_of */
-  printk(KERN_INFO "Pid is [%d]\n", dev->pd->pid);
-  return 1;
+  ssize_t retval = 0;
+
+  /* acquire lock for concurrency */
+  if(down_interruptible(&dev->sem))
+    return -ERESTARTSYS;
+
+  /* this is not a first time request, we already satisfied the callee earlier
+   * (it would have been better to see the total size of struct and decide whether
+   * this second request is legitimate, eg users can use read with len)
+   */
+  if (*f_pos != 0) {
+    goto out;
+  }
+
+  /* write the data to pd_str */
+  sprintf(dev->pd->pd_str, "Pid: [%d]\n", current->pid);
+
+  /* write pd_str to userspace */
+  if (copy_to_user(buf, dev->pd->pd_str, strlen(dev->pd->pd_str))) {
+    retval = -EFAULT;
+    goto out;
+  }
+
+  *f_pos = strlen(dev->pd->pd_str);
+  retval = strlen(dev->pd->pd_str);
+
+ out:
+  up(&dev->sem);
+  return retval;
 }
                 
 
@@ -98,6 +126,9 @@ int pd_dev_setup(struct pd_dev *dev, int nr) {
 
   /* create the 'pd' space */
   dev->pd = kmalloc(sizeof(struct pd_data) * 1, GFP_KERNEL);
+  /* pd string space */
+  dev->pd->pd_str = kmalloc(sizeof(char) * PD_STR_SIZE, GFP_KERNEL);
+  memset(dev->pd->pd_str, 0, sizeof(char) * PD_STR_SIZE);
 
   /* initialize the PID to -1, else if read is first we should say PID is not valid */
   dev->pd->pid = 1;
@@ -148,6 +179,8 @@ static void __exit pd_exit_module(void) {
 
   /* free the memory we acquired for each device */
   for (i=0; i<pd_nr; i++) {
+    /* clean the process descriptor string space */
+    kfree(pd_device[i].pd->pd_str);
     /* free the pd_data first, else pointer to be it will be lost */
     kfree(pd_device[i].pd);
     /* unregister the character device */
