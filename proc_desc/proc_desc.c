@@ -6,16 +6,16 @@
 #include <linux/kernel.h>	/* printk() */
 #include <linux/slab.h>		/* kmalloc() */
 #include <linux/fs.h>		/* everything... */
-#include <linux/errno.h>	/* error codes */
-#include <linux/types.h>	/* size_t */
+#include <linux/errno.h>        /* error codes */
+#include <linux/types.h>        /* size_t */
 #include <linux/sched.h>        /* current and everything */
 
-#include <linux/fcntl.h>	/* O_ACCMODE */
+#include <linux/fcntl.h>        /* O_ACCMODE */
 #include <linux/seq_file.h>
 #include <linux/cdev.h>
 
 #include <asm/system.h>		/* cli(), *_flags */
-#include <asm/uaccess.h>	/* copy_*_user */
+#include <asm/uaccess.h>        /* copy_*_user */
 
 #include "proc_desc.h"
 

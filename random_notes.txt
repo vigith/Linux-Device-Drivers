@@ -1,0 +1,197 @@
+Adison Wesley. Linux Kernel Development. Robert Love.
+
+Chapter 3, Process Management
+=============================
+
+page 32:
+-------
+When an application executes a system call, we say that the kernel is 
+executing on behalf of the application. Furthermore, the application is said to be executing a 
+system call in kernel-space, and the kernel is running in process context.
+
+Linux, the interrupt handlers do not run in a process context. Instead, they run in a special 
+interrupt context that is not associated with any process.This special context exists solely to 
+let an interrupt handler quickly respond to an interrupt, and then exit. 
+
+
+page 47:
+-------
+kernel memory is not pageable.Therefore, every byte of memory you 
+consume is one less byte of available physical memory.
+
+
+page 50:
+-------
+Each thread includes a unique program counter, process stack, and set of proces- 
+sor registers.The kernel schedules individual threads, not processes.
+
+processes provide two virtualizations: a virtualized 
+processor and virtual memory.The virtual processor gives the process the illusion that it 
+alone monopolizes the system, despite possibly sharing the processor among hundreds of 
+other processes. Virtual memory lets the process allocate and manage memory as if it alone owned all the mem- 
+ory in the system.
+
+
+page 51:
+-------
+The process that calls fork() is the parent, whereas the new process is the child.The 
+parent resumes execution and the child starts execution at the same place: where the call 
+to fork() returns. fork() is actually implemented via the clone() system call,
+
+a program exits via the exit() system call.This function terminates the process 
+and frees all its resources.A parent process can inquire about the status of a terminated 
+child via the wait4()1 system call, which enables a process to wait for the termination of 
+a specific process.When a process exits, it is placed into a special zombie state that repre- 
+sents terminated processes until the parent calls wait() or waitpid().
+
+The kernel stores the list of processes in a circular doubly linked list called the task list.
+Each element in the task list is a process descriptor of the type struct task_struct, which 
+is defined in <linux/sched.h>. The process descriptor contains all the information about 
+a specific process (contains open files, the process’s address space, 
+pending signals, the process’s state, and much more)
+
+
+page 52:
+-------
+Each task’s thread_info structure is allocated at the end of its stack.The task element 
+of the structure is a pointer to the task’s actual task_struct. 
+
+
+page 54:
+-------
+TASK_RUNNING—The process is runnable; it is either currently running or on a run- 
+queue waiting to run. this is the only possible state for a process executing in user-space;
+
+TASK_INTERRUPTIBLE—The process is sleeping (that is, it is blocked), waiting for 
+some condition to exist. When this condition exists, the kernel sets the process’s 
+state to TASK_RUNNING.The process also awakes prematurely and becomes runnable 
+if it receives a signal. 
+
+
+page 55:
+-------
+TASK_UNINTERRUPTIBLE—This state is identical to TASK_INTERRUPTIBLE except 
+that it does not wake up and become runnable if it receives a signal.
+
+__TASK_STOPPED—Process execution has stopped; the task is not running nor is it 
+eligible to run.This occurs if the task receives the SIGSTOP, SIGTSTP, SIGTTIN,or 
+SIGTTOU signal or if it receives any signal while it is being debugged. 
+
+QUESTION: to which queue is a processed moved when it receives SIGSTOP?
+
+page 56:
+-------
+All processes are descendants of the init process, whose PID is one.The kernel starts 
+init in the last step of the boot process.The init process, in turn, reads the system 
+initscripts and executes more programs, eventually completing the boot process.
+The relationship between processes is stored in the process descriptor. Each task_struct 
+has a pointer to the parent’s task_struct, named parent, and a list of children, named
+children.
+
+
+page 59:
+-------
+The fork(), vfork(), and __clone() library calls all invoke the clone() system call with the 
+requisite flags.The clone() system call, in turn, calls do_fork(). do_fork() calls copy_process().
+Back in do_fork(), if copy_process() returns successfully, the new child is woken up 
+and run. Deliberately, the kernel runs the child process first. In the common case of the 
+child simply calling exec() immediately, this eliminates any copy-on-write overhead that 
+would occur if the parent ran first and began writing to the address space. 
+
+READ: forking, do_fork() and copy_process().
+
+
+page 60:
+-------
+The vfork()system call has the same effect as fork(), except that the page table entries 
+of the parent process are not copied. Instead, the child executes as the sole thread in the 
+parent’s address space, and the parent is blocked until the child either calls exec() or exits. 
+The child is not allowed to write to the address space.
+
+
+page 61:
+-------
+Each thread has a unique task_struct and appears to the kernel as a normal process— 
+threads just happen to share resources, such as an address space, with other processes. 
+
+QUESTION: does each thread has a PID or how is it managed in Linux?
+
+Threads are created the same as normal tasks, with the exception that the clone() system 
+call is passed flags corresponding to the specific resources to be shared: 
+clone(CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND, 0); 
+
+In contrast, a normal fork() can be implemented as clone(SIGCHLD, 0); 
+And vfork() is implemented as clone(CLONE_VFORK | CLONE_VM | SIGCHLD, 0); 
+
+QUESTION: what is an idle task?
+
+
+page 62:
+-------
+The significant difference between kernel threads and normal processes is that 
+kernel threads do not have an address space. (Their mm pointer, which points at their 
+address space, is NULL.) They operate only in kernel-space and do not context switch into 
+user-space. Kernel threads, however, are schedulable and preemptable, the same as normal 
+processes. 
+
+
+page 63:
+-------
+a kernel thread can be created only by another kernel 
+thread.The kernel handles this automatically by forking all new kernel threads off of the
+kthreadd kernel process.
+
+When a process terminates, the kernel releases 
+the resources owned by the process and notifies the child’s parent of its demise.
+
+
+page 64:
+-------
+READ: do_exit().
+
+after do_exit, all objects associated with the task (assuming the task was the sole user) 
+are freed.The task is not runnable (and no longer has an address space in which to run) 
+and is in the EXIT_ZOMBIE exit state.The only memory it occupies is its kernel stack, the 
+thread_info structure, and the task_struct structure.The task exists solely to provide 
+information to its parent.After the parent retrieves the information, or notifies the kernel 
+that it is uninterested, the remaining memory held by the process is freed and returned to 
+the system for use. 
+
+After do_exit() completes, the process descriptor for the terminated process still exists, 
+but the process is a zombie and is unable to run. this enables the system to 
+obtain information about a child process after it has terminated.
+
+
+page 65:
+-------
+After the parent has obtained information on its terminated child, or signified to the kernel that it 
+does not care, the child’s task_struct is deallocated. 
+
+The wait() family of functions are implemented via a single (and complicated) system 
+call, wait4().The standard behavior is to suspend execution of the calling task until one 
+of its children exits, at which time the function returns with the PID of the exited child. 
+Additionally, a pointer is provided to the function that on return holds the exit code of 
+the terminated child.
+
+READ: release_task()
+
+QUESTION: how is process group and exit() related along with zombies?
+
+If a parent exits before its children, some mechanism must exist to reparent any child tasks 
+to a new process, or else parentless terminated processes would forever remain zombies, 
+wasting system memory.The solution is to reparent a task’s children on exit to either 
+another process in the current thread group or, if that fails, the init process.
+
+
+page 67:
+-------
+When a task is ptraced, it is temporarily reparented to the debug- 
+ging process.When the task’s parent exits, however, it must be reparented along with its 
+other siblings. The solution is simply to keep a separate list of a process’s children 
+being ptraced—reducing the search for one’s children from every process to just two rela- 
+tively small lists. 
+With the process successfully reparented, there is no risk of stray zombie processes.The 
+init process routinely calls wait() on its children, cleaning up any zombies assigned to it. 
+
+QUESTION: ptrace() and parenting, why should it make debugging process as parent ?
+
