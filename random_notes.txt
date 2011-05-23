@@ -195,3 +195,176 @@ init process routinely calls wait() on its children, cleaning up any zombies ass
 
 QUESTION: ptrace() and parenting, why should it make debugging process as parent ?
 
+
+
+Chapter 4, Process Scheduling
+=============================
+
+page 68:
+-------
+Multitasking operating systems come in two flavors: cooperative multitasking and 
+preemptive multitasking. 
+In preemptive multitasking, the scheduler decides when a process is to 
+cease running and a new process is to begin running. involuntarily 
+suspending a running process is called preemption.
+in cooperative multitasking, a process does not stop running until it voluntary 
+decides to do so.The act of a process voluntarily suspending itself is called yielding.
+
+page 69:
+-------
+although the O(1) scheduler was ideal for large server workloads—which 
+lack interactive processes—it performed below par on desktop systems, 
+
+page 70:
+-------
+A scheduler policy for processor-bound processes, therefore, 
+tends to run such processes less frequently but for longer durations.
+
+page 71:
+-------
+The Linux kernel implements two separate priority ranges.The first is the nice value, a 
+number from –20 to +19 with a default of 0. Larger nice values correspond to a lower 
+priority—you are being “nice” to the other processes on the system. 
+The second range is the real-time priority.The values are configurable, but by default 
+range from 0 to 99, inclusive. Opposite from nice values, higher real-time priority values 
+correspond to a greater priority.
+
+page 73:
+-------
+The Linux scheduler is modular, enabling different algorithms to schedule different types 
+of processes.This modularity is called scheduler classes. Scheduler classes enable different, 
+pluggable algorithms to coexist, scheduling their own types of processes. Each scheduler 
+class has a priority.The base scheduler code, which is defined in kernel/sched.c, iterates 
+over each scheduler class in order of priority.The highest priority scheduler class that has 
+a runnable process wins, selecting who runs next.
+
+page 74:
+-------
+Process Scheduling in Unix Systems (whole section is interesting)
+
+Indeed, given 
+that high nice value (low priority) processes tend to be background, processor-intensive 
+tasks, while normal priority processes tend to be foreground user tasks, this timeslice 
+allotment is exactly backward from ideal! ==> MEANS high nice value makes processor-intensive
+tasks background and user tasks foreground. (it should be such that user processes should be
+background and come foreground during any events?)
+
+page 75:
+-------
+old unix schedulrs assign absolute timeslices to nice value yields
+a constant switching rate but variable fairness.
+CFS yields constant fairness but a variable switching rate. 
+
+page 76:
+-------
+CFS sets a target for its approximation of the “infinitely small scheduling
+duration in perfect multitasking.This target is called the targeted latency.
+
+Instead of using the nice value to calculate a timeslice, CFS uses the nice value to weight the propor- 
+tion of processor a process is to receive: Higher valued (lower priority) processes receive a 
+fractional weight relative to the default nice value, whereas lower valued (higher priority) 
+processes receive a larger weight. 
+
+CFS imposes a floor on the timeslice assigned to each 
+process.This floor is called the minimum granularity. 
+
+page 77:
+-------
+the proportion of processor time that any process receives is determined 
+only by the relative difference in niceness between it and the other runnable processes. 
+The nice values, instead of yielding additive increases to timeslices, yield geometric differ- 
+ences.The absolute timeslice allotted any nice value is not an absolute number, but a 
+given proportion of the processor. CFS is called a fair scheduler because it gives each 
+process a fair share—a proportion—of the processor’s time.As mentioned, note that CFS 
+isn’t perfectly fair, because it only approximates perfect multitasking, but it can place a 
+lower bound on latency of n for n runnable processes on the unfairness.
+
+page 78:
+-------
+The vruntime variable stores the virtual runtime of a process, which is the actual runtime 
+(the amount of time spent running) normalized (or weighted) by the number of runnable 
+processes. CFS uses vruntime to account for how long a process has run and thus how much 
+longer it ought to run (function update_curr() does this). 
+
+
+page 79:
+-------
+update_curr() is invoked periodically by the system timer and also whenever a 
+process becomes runnable or blocks, becoming unrunnable. In this manner, vruntime is 
+an accurate measure of the runtime of a given process and an indicator of what process 
+should run next.
+
+page 80:
+-------
+when CFS is deciding what process to run next, it picks the process with the smallest vruntime.
+
+page 84:
+-------
+schedule() is generic with 
+respect to scheduler classes.That is, it finds the highest priority scheduler class with a 
+runnable process and asks it what to run next.
+
+page 89:
+-------
+Context switching, the switching from one runnable task to another, is handled by the 
+context_switch()function defined in kernel/sched.c. It is called by schedule() 
+when a new process has been selected to run. It does two basic jobs: 
+1. Calls switch_mm(), which is declared in <asm/mmu_context.h>, to switch the vir- 
+tual memory mapping from the previous process’s to that of the new process. 
+2. Calls switch_to(), declared in <asm/system.h>, to switch the processor state from 
+the previous process’s to the current’s.This involves saving and restoring stack infor- 
+mation and the processor registers and any other architecture-specific state that 
+must be managed and restored on a per-process basis.
+
+the kernel provides the need_resched flag to signify whether a reschedule should be performed
+.This flag is set by scheduler_tick() when a process should be preempted, and 
+by try_to_wake_up() when a process that has a higher priority than the currently run- 
+ning process is awakened.The kernel checks the flag, sees that it is set, and calls schedule() 
+to switch to a new process.The flag is a message to the kernel that the scheduler should be 
+invoked as soon as possible because another process deserves to run. 
+
+Upon returning to user-space or returning from an interrupt, the need_resched flag is 
+checked. If it is set, the kernel invokes the scheduler before continuing. 
+The flag is per-process, and not simply global, because it is faster to access a value in 
+the process descriptor (because of the speed of current and high probability of it being 
+cache hot) than a global variable. (need_resched is a special flag variable inside the 
+thread_info structure).
+
+page 90:
+-------
+In short, user preemption can occur 
+1. When returning to user-space from a system call 
+2. When returning to user-space from an interrupt handler 
+
+So when is it safe to reschedule? The kernel can preempt a task running in the kernel 
+so long as it does not hold a lock.That is, locks are used as markers of regions of nonpre- 
+emptibility. Because the kernel is SMP-safe, if a lock is not held, the current code is reen- 
+trant and capable of being preempted. 
+
+The first change in supporting kernel preemption was the addition of a preemption 
+counter, preempt_count, to each process's thread_info.This counter begins at zero and 
+increments once for each lock that is acquired and decrements once for each lock that is 
+released.When the counter is zero, the kernel is preemptible. Upon return from interrupt, 
+if returning to kernel-space, the kernel checks the values of need_resched and 
+preempt_count. If need_resched is set and preempt_count is zero, then a more impor- 
+tant task is runnable, and it is safe to preempt.Thus, the scheduler is invoked. If 
+preempt_count is nonzero, a lock is held, and it is unsafe to reschedule. In that case, the 
+interrupt returns as usual to the currently executing task.When all the locks that the cur- 
+rent task is holding are released, preempt_count returns to zero.At that time, the unlock 
+code checks whether need_resched is set. If so, the scheduler is invoked. Kernel preemption can
+also occur explicitly, when a task in the kernel blocks or explicitly calls schedule().
+
+page 91:
+------
+Kernel preemption can occur 
+1. When an interrupt handler exits, before returning to kernel-space 
+2. When kernel code becomes preemptible again 
+3. If a task in the kernel explicitly calls 
+schedule() 
+4. If a task in the kernel blocks (which results in a call to 
+schedule()) 
+
+Real-Time Scheduling Policies (READ WHOLE SECTION)
+
+
+will "a + b" invoke any system calls?
