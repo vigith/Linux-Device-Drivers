@@ -20,6 +20,7 @@ struct pd_data {
   char *pd_str;	/* pointer to task_struct */
 };
 
+/* our device structure */
 struct pd_dev {
   struct pd_data *pd;
   struct semaphore sem;     /* mutual exclusion semaphore  */

@@ -63,6 +63,9 @@ int pd_open(struct inode *inode, struct file *filp) {
 ssize_t pd_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) {
   struct pd_dev *dev = filp->private_data; /* we had stored 'dev' in private_data, else use container_of */
   ssize_t retval = 0;
+  
+  struct task_struct *task;
+  short int flag = 0;
 
   /* acquire lock for concurrency */
   if(down_interruptible(&dev->sem))
@@ -76,8 +79,21 @@ ssize_t pd_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos
     goto out;
   }
 
-  /* write the data to pd_str */
-  sprintf(dev->pd->pd_str, "Pid: [%d]\n", current->pid);
+  /* if nothing is written to the device file, we can't fetch any task_struct */
+  if (dev->pd->pid == -1) {
+    /* write the data to pd_str */
+    sprintf(dev->pd->pd_str, "Please write a pid to the device file\n");
+  } else {
+    for_each_process(task) {
+      if (task->pid == dev->pd->pid) {
+	flag = 1;
+	sprintf(dev->pd->pd_str, "Requested Pid: [%d] Current Pid: [%d] Comm: [%s]\n",
+		dev->pd->pid, current->pid, task->comm);
+      }
+    }
+    if (!flag) 
+      printk(KERN_ALERT "Pid [%d] doesn't seem to be in pid list!\n", dev->pd->pid);
+  }
 
   /* write pd_str to userspace */
   if (copy_to_user(buf, dev->pd->pd_str, strlen(dev->pd->pd_str))) {
@@ -92,6 +108,45 @@ ssize_t pd_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos
   up(&dev->sem);
   return retval;
 }
+
+/*
+ * 'write' system call, when user writes to the device file
+ */
+ssize_t pd_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
+  struct pd_dev *dev = filp->private_data; /* we had stored 'dev' in private_data, else use container_of */
+  ssize_t retval = -ENOMEM;
+  char *spid, *estr;
+  pid_t ipid;
+
+  spid = kmalloc(sizeof(pid_t) * 1, GFP_KERNEL); /* pid is read a a string */
+  estr = kmalloc(sizeof(pid_t) * 1, GFP_KERNEL); /* needed for simple_strtol */
+  memset(spid, 0, sizeof(pid_t) * 1);
+
+  /* get a lock */
+  if(down_interruptible(&dev->sem))
+    return -ERESTARTSYS;
+
+  if (count > 100)
+    count = 100;
+
+  /* write the pid to spid */
+  if(copy_from_user(spid, buf, count)) {
+    retval = -EFAULT;
+    goto out;
+  }
+  spid[count-1] = '\0';		/* i don't have to do this because of memset! */
+
+  ipid = simple_strtol(spid, &estr, 10); /* 10 says, use decimal base */
+  dev->pd->pid = ipid;
+
+  /* update the file_pointer with new position */
+  *f_pos = count;
+  retval = count;
+
+ out:
+  up(&dev->sem);
+  return retval;
+}
                 
 
 /* 
@@ -101,6 +156,7 @@ struct file_operations pd_fops = {
   .owner = THIS_MODULE,
   .open  = pd_open,
   .read  = pd_read,
+  .write = pd_write,
 };
 
 
@@ -117,7 +173,7 @@ int pd_dev_setup(struct pd_dev *dev, int nr) {
   dev->cdev.owner = THIS_MODULE;
 
   /* tells the kernel about the registration */
-  err = cdev_add (&dev->cdev, devno, 1);
+  err = cdev_add(&dev->cdev, devno, 1);
 
   if (err) {
     printk(KERN_WARNING "Error during setting up 'proc_desc' device no [%d]\n", nr);
@@ -131,7 +187,7 @@ int pd_dev_setup(struct pd_dev *dev, int nr) {
   memset(dev->pd->pd_str, 0, sizeof(char) * PD_STR_SIZE);
 
   /* initialize the PID to -1, else if read is first we should say PID is not valid */
-  dev->pd->pid = 1;
+  dev->pd->pid = -1;
 
   return 0;
 }
@@ -155,7 +211,7 @@ static int __init pd_init_module(void) {
   pd_major = MAJOR(dev);
 
   /* allocate the devices */
-  /* This is the flag to use in process context code when it is safe to sleep. The 
+  /* GFP_KERNEL is the flag to use in process context code when it is safe to sleep. The 
      kernel will do whatever it has to do to obtain the memory requested by the caller. */     
   pd_device = kmalloc(pd_nr * sizeof(struct pd_dev), GFP_KERNEL);
 
