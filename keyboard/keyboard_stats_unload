@@ -1,0 +1,12 @@
+#!/bin/bash -x
+
+module="keyboardInt"
+device="keyboard_stats"
+
+
+# invoke rmmod with all arguments we got
+/sbin/rmmod $module $* || exit 1
+
+
+# Remove stale nodes
+rm -f /dev/${device}
