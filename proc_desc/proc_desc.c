@@ -124,7 +124,7 @@ ssize_t pd_write(struct file *filp, const char __user *buf, size_t count, loff_t
 
   /* get a lock */
   if(down_interruptible(&dev->sem))
-    return -ERESTARTSYS;
+    return -ERESTARTSYS;	/* use -EINTR if there will be inconsistency if the call to function is made again */
 
   if (count > 100)
     count = 100;
@@ -136,6 +136,7 @@ ssize_t pd_write(struct file *filp, const char __user *buf, size_t count, loff_t
   }
   spid[count-1] = '\0';		/* i don't have to do this because of memset! */
 
+  // string to long
   ipid = simple_strtol(spid, &estr, 10); /* 10 says, use decimal base */
   dev->pd->pid = ipid;
 
