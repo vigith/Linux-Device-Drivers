@@ -1,17 +1,39 @@
 
+#ifndef _KEYBOARD_STATS_
+#define _KEYBOARD_STATS_
+
+#ifndef KYBRD_MAJOR
+#define K_MAJOR 0		/* dynamic major number */
+#endif
+
+#ifndef KYBRD_STR_SIZE
+#define K_STR_SIZE 1024*4*4     /* data size that is to be printed out */
+#endif
+
+#ifndef SCAN_CODES
+#define SCAN_CODES 255
+#endif
+
+/* our device structure */
+struct keyboard_stats_dev {
+  char *stat_str;		/* string that would be shown to user */
+  struct semaphore sem;		/* mutual exclusion semaphore  */
+  struct cdev cdev;		/* Char device structure       */
+};
+
 /* scan code */
 static unsigned char scancode;
 
-
 /*
-  Stats on the keyboard presses, we will have to statically assign the character for key!
- */
+  Stats on the keyboard presses, 
+  we will have to statically assign the character for key!
+
 struct keyboard_stat {
-  char str[4];			/* keyboard key mapping */
-  char hex[4];			/* hex key of scan code */
+  char str[10];			// keyboard key mapping 
+char hex[4];			// hex key of scan code 
   int dec;
-  long int count_p;		/* number of times key has been pressed */
-  long int count_r;		/* number of times key has been released */
+long int count_p;		// number of times key has been pressed
+long int count_r;		// number of times key has been released 
 } keyboard_stats[] = {
   { "ERR", "0", 0, 0, 0 }, 
   { "ESC", "1", 1, 0, 0 }, 
@@ -268,6 +290,9 @@ struct keyboard_stat {
   { "NONE", "fc", 252, 0, 0 }, 
   { "NONE", "fd", 253, 0, 0 }, 
   { "NONE", "fe", 254, 0, 0 }, 
-  { "NONE", "ff", 255, 0, 0 }, 
-  { "NONE", "100", 256, 0, 0 }
+  { "NONE", "ff", 255, 0, 0 }
 };
+
+*/
+
+#endif	/* _KEYBOARD_STATS_ */
