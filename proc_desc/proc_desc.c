@@ -49,7 +49,7 @@ int pd_open(struct inode *inode, struct file *filp) {
     if (down_interruptible(&dev->sem)) /* return error, if we can't */
       return -ERESTARTSYS;
 
-    kfree(dev->pd);	/* remove the struct allocated */
+    kfree(dev->pd->pd_str);	/* remove the pd_str allocated, we don't need it in O_WRONLY */
 
     up(&dev->sem);   /* release the lock */
   }
