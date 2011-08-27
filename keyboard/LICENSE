@@ -1,0 +1,22 @@
+
+Vigith's Beer Bottle License 
+----------------------------
+
+If you like this code (don't have to be useful though), next time when you meet me,
+you can get me a beer (and for those who don't drink, get me a donut).
+
+This code is your code, do whatever you want to do with it, BUT if things go bad because
+of this code I will shamelessly refute the authorship of this code :-).
+
+
+SERIOUSLY!, I am not a proper kernel hacker, just a random guy who likes poking "the kernel".
+This code is not efficient and is not guaranteed to work in a concurrent system (it worked for
+me somehow :-). Patches are welcome! 
+
+-vim
+Vigith Maurice
+www.vigith.com <v@vigith.com>
+<vigith@cpan.org>
+
+
+

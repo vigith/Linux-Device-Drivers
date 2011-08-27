@@ -1,0 +1,28 @@
+
+README
+------
+
+0. 0rth Law (as in thermodynamics)
+cat LICENSE
+
+1. compile 
+$ make
+
+2. INsert the module into kernel and setup the system
+$ keyboard_stats_load
+
+3. Read the statistics
+$ cat /dev/keyboard_stats | less
+
+4. Remove the module
+$ keyboard_stats_unload
+
+
+DEBUGGING
+---------
+
+Mail the author or read /var/log/messages and set the scancodes.
+
+
+
+- Vigith Maurice
