@@ -24,7 +24,7 @@ major=$(awk "\$2==\"$device\" {print \$1}" /proc/devices)
 
 # Remove stale nodes and replace them, then give gid and perms
 rm -f /dev/${device}
-mknod /dev/${device} c $major 0
+mknod /dev/${device} c $major 0	# create device file
 chgrp $group /dev/${device}
 chmod $mode  /dev/${device}
 

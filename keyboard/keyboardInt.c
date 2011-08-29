@@ -120,10 +120,12 @@ ssize_t k_dev_read(struct file *filp, char __user *buf, size_t count, loff_t *f_
   dev->stat_str[0] = '\0';
 
   /* Populate the stats string! */
-  for (i=1; i<=SCAN_CODES; i++) {
+  sprintf(tmp, "\t\tKey Name (Release Count\tPress Count)\n");  
+  strcat(dev->stat_str, tmp);
+  for (i=1; i<=SCAN_CODES;) {
     sprintf(tmp, "%10s (%lu %lu)%c", keyboard_stats[i].str, keyboard_stats[i].count_r, keyboard_stats[i].count_p, sep);  
     strcat(dev->stat_str, tmp);
-    if (i % 3 == 0) {
+    if (++i % 3 == 0) {
       sep = '\n';
       continue;
     }
@@ -145,6 +147,19 @@ ssize_t k_dev_read(struct file *filp, char __user *buf, size_t count, loff_t *f_
 }
 
 
+/*
+ * 'close' system call
+ */
+int k_dev_release(struct inode *inode, struct file *filp) {
+  struct keyboard_stats_dev *dev;		/* our device (cdev), which contains 'cdev' */
+
+  /* get the device */
+  dev = container_of(inode->i_cdev, struct keyboard_stats_dev, cdev);
+
+  return 0;
+}
+
+
 /* 
  * setting up the file operations for k_dev
  */
@@ -152,7 +167,9 @@ struct file_operations k_fops = {
   .owner = THIS_MODULE,
   .open  = k_dev_open,
   .read  = k_dev_read,
+  .release = k_dev_release,
 };
+
 
 /* 
  * Device Setup for Keyboard Stats Device
